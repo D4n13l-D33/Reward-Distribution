@@ -1,21 +1,20 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
 
-  const lockedAmount = ethers.parseEther("0.001");
+  const NFTAddress = "0x32AA24E69E41b66EF4cc74dD5281Be42c75D3B9d";
+  const TokenAddress = "0xd64a71d6722cc84324fe95b4bb79bf631aa7d15b";
+  const maxNoEntries = 2;
+  const subscriptionId = 9779;
+  const noOfWinners = 4;
+  const totalRewards = 100000;
+  
+  const rewardDistribution = await ethers.deployContract("RewardDistribution", [NFTAddress, TokenAddress, totalRewards, maxNoEntries, subscriptionId, noOfWinners]);
 
-  const lock = await ethers.deployContract("Lock", [unlockTime], {
-    value: lockedAmount,
-  });
-
-  await lock.waitForDeployment();
+  await rewardDistribution.waitForDeployment();
 
   console.log(
-    `Lock with ${ethers.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
+    `Reward Distribution Contract deployed to ${rewardDistribution.target}`
   );
 }
 

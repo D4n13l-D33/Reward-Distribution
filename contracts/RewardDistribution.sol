@@ -38,13 +38,13 @@ contract RewardDistribution is VRFConsumerBaseV2{
         address partAdd;
         uint numOFEntries;
         uint reward;
+        bool status;
     }
 
     //keeps track of participants registered on the platform
     mapping (address => participants) public registeredParticipants;
 
-    mapping (address => bool) public alreadyRegistered;
-
+    
     //records entries by users 
     address [] entries;
 
@@ -65,13 +65,16 @@ contract RewardDistribution is VRFConsumerBaseV2{
         tokenAddress = _TokenAddress;
         totalReward = _TotalRewards;
         maxNoOfEntries = _maxNoOfEntries;
-        deadline = 3 minutes;
+        deadline = block.timestamp + (3 minutes);
 
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         s_subscriptionId = subscriptionId;
         numWords = _numberOFWinners;
     }
-
+    event RegisteredSuccessfully(address indexed user);
+    event SubmittedAnEntry(address indexed user, uint indexed _noOFEntries);
+    event WinnersGotten(address [] indexed _winners);
+    event RewardDistributed(participants indexed _winners);
     /* This function registers users
         by assigning true to the mapping that tracks if users are registered or not
         and assigns who is calling the function to partAdd
@@ -79,13 +82,13 @@ contract RewardDistribution is VRFConsumerBaseV2{
     */
     function register()  external{
         require(msg.sender != address(0));
-        require(alreadyRegistered[msg.sender] == false);
+        require(registeredParticipants[msg.sender].status == false);
 
-        alreadyRegistered[msg.sender] == true;
+        registeredParticipants[msg.sender].status == true;
 
         registeredParticipants[msg.sender].partAdd = msg.sender;
 
-        
+        emit RegisteredSuccessfully(msg.sender);        
 
     }
 
@@ -99,7 +102,8 @@ contract RewardDistribution is VRFConsumerBaseV2{
     the pushes the address of the caller to entries this way users can submit entry more than once and their entries could occupy different positions in the array
     */
     function joinEvent(uint tokenID) external payable{
-        require(alreadyRegistered[msg.sender] == true, "Not Registered");
+        require(block.timestamp <= deadline, "Event Has Ended");
+        require(registeredParticipants[msg.sender].status == true, "Not Registered");
         require(registeredParticipants[msg.sender].numOFEntries <= maxNoOfEntries, "You have Maxed the number of Entries");
 
         ERC721(NFTaddress).transferFrom(msg.sender, address(this), tokenID);
@@ -108,10 +112,12 @@ contract RewardDistribution is VRFConsumerBaseV2{
 
         entries.push(msg.sender);
 
+        emit SubmittedAnEntry(msg.sender, registeredParticipants[msg.sender].numOFEntries);
         }
     //the function calls the requestRandomWords function in the VRF contract it processes and returns an array of randomwords from the oracle
     function getWinners() external{
         onlyOwner();
+        require(block.timestamp > deadline, "Event Has not Ended");
 
         COORDINATOR.requestRandomWords(s_keyHash, s_subscriptionId, requestConfirmations, callbackGasLimit, numWords);
         }
@@ -121,6 +127,7 @@ contract RewardDistribution is VRFConsumerBaseV2{
     this random numbers within 0 to entries.length are matched to the items on array entries and the resulting address is pushed to array winners
     */
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        require(block.timestamp > deadline, "Event Has not Ended");
         onlyOwner();
 
         uint32 index;
@@ -133,16 +140,17 @@ contract RewardDistribution is VRFConsumerBaseV2{
         winners.push(entries[realValue]);
 
         index ++;
-
+        
         }
 
-       
+       emit WinnersGotten(winners);
     }
     /*
     this function calculates the rewards of each users by using percentage of the number of winners to the total reward
     then the reward in an ERC20 token to each winners in the array of winners, this allows for a users entries to both be chosen or both not chosen if unlucky
     */
     function distributeReward()external {
+        require(block.timestamp > deadline, "Event Has not Ended");
         onlyOwner();
 
         uint index;
@@ -156,6 +164,8 @@ contract RewardDistribution is VRFConsumerBaseV2{
             IERC20(tokenAddress).transfer(winner.partAdd, winner.reward);
 
             index++;
+
+            emit RewardDistributed(winner);
         }
     }
     
