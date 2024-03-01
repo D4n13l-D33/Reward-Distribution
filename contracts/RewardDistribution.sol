@@ -84,7 +84,7 @@ contract RewardDistribution is VRFConsumerBaseV2{
         require(msg.sender != address(0));
         require(registeredParticipants[msg.sender].status == false);
 
-        registeredParticipants[msg.sender].status == true;
+        registeredParticipants[msg.sender].status = true; 
 
         registeredParticipants[msg.sender].partAdd = msg.sender;
 
@@ -106,7 +106,7 @@ contract RewardDistribution is VRFConsumerBaseV2{
         require(registeredParticipants[msg.sender].status == true, "Not Registered");
         require(registeredParticipants[msg.sender].numOFEntries <= maxNoOfEntries, "You have Maxed the number of Entries");
 
-        ERC721(NFTaddress).transferFrom(msg.sender, address(this), tokenID);
+        ERC721(NFTaddress).safeTransferFrom(msg.sender, address(this), tokenID);
 
         registeredParticipants[msg.sender].numOFEntries = registeredParticipants[msg.sender].numOFEntries + 1;
 
@@ -115,11 +115,11 @@ contract RewardDistribution is VRFConsumerBaseV2{
         emit SubmittedAnEntry(msg.sender, registeredParticipants[msg.sender].numOFEntries);
         }
     //the function calls the requestRandomWords function in the VRF contract it processes and returns an array of randomwords from the oracle
-    function getWinners() external{
+    function getWinners() external returns(uint256 requestId) {
         onlyOwner();
         require(block.timestamp > deadline, "Event Has not Ended");
 
-        COORDINATOR.requestRandomWords(s_keyHash, s_subscriptionId, requestConfirmations, callbackGasLimit, numWords);
+        requestId = COORDINATOR.requestRandomWords(s_keyHash, s_subscriptionId, requestConfirmations, callbackGasLimit, numWords);
         }
     /*
     this function is used to receive the randomWords from the chainlink oracle and converts the array of random string of numbers to an array of numbers within 0 to the entries.length
@@ -173,4 +173,8 @@ contract RewardDistribution is VRFConsumerBaseV2{
     function onlyOwner() private view {
         require(msg.sender == owner);
     }
+
+    receive() external payable { }
+
+    fallback() external payable { }
 }
