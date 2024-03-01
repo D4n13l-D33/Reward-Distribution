@@ -154,9 +154,10 @@ contract RewardDistribution is VRFConsumerBaseV2{
         onlyOwner();
 
         uint index;
+        uint percentage = 100/numWords;
 
         for(uint16 i; i<= winners.length; i++){
-            uint reward = totalReward * numWords/100;
+            uint reward = totalReward * percentage/100;
             participants storage winner = registeredParticipants[winners[index]];
 
             winner.reward = reward;
